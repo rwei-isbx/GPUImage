@@ -3,16 +3,28 @@
 #import "GPUImageContext.h"
 #import "GPUImageOutput.h"
 
+enum GPUImageMovieInstruction : NSUInteger {
+    GPUImageMovieInstructionPlay = 0,
+    GPUImageMovieInstructionPause = 1,
+    GPUImageMovieInstructionSkip = 2,
+    GPUImageMovieInstructionRewind = 3
+};
+typedef NSUInteger GPUImageMovieInstruction;
+
 /** Protocol for getting Movie played callback.
  */
 @protocol GPUImageMovieDelegate <NSObject>
-
-- (void)didCompletePlayingMovie;
+- (void)movieWillStart:(id)sender;
+- (void)movieDidFinish:(id)sender;
+- (void)movie:(id)sender willProcessFrame:(CMSampleBufferRef)frame;
+- (void)movie:(id)sender didProcessFrame:(CMSampleBufferRef)frame;
 @end
 
 /** Source object for filtering movies
  */
 @interface GPUImageMovie : GPUImageOutput
+
+@property (readwrite, nonatomic) GPUImageMovieInstruction instruction;
 
 @property (readwrite, retain) AVAsset *asset;
 @property (readwrite, retain) AVPlayerItem *playerItem;

@@ -160,6 +160,10 @@
 
 - (void)startProcessing
 {
+    if ([self.delegate respondsToSelector:@selector(movieWillStart:)]) {
+        [self.delegate movieWillStart:self];
+    }
+    
     if( self.playerItem ) {
         [self processPlayerItem];
         return;
@@ -239,6 +243,7 @@
 
 - (void)processAsset
 {
+    _instruction = GPUImageMovieInstructionPlay;
     reader = [self createAssetReader];
 
     AVAssetReaderOutput *readerVideoTrackOutput = nil;
@@ -416,7 +421,18 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 {
     if (reader.status == AVAssetReaderStatusReading && ! videoEncodingIsFinished)
     {
+        if (_instruction == GPUImageMovieInstructionPause) {
+            usleep(1000);
+            return YES;
+        };
         CMSampleBufferRef sampleBufferRef = [readerVideoTrackOutput copyNextSampleBuffer];
+        if ([self.delegate respondsToSelector:@selector(movie:willProcessFrame:)]) {
+            [self.delegate movie:self willProcessFrame:sampleBufferRef];
+        }
+        if (_instruction == GPUImageMovieInstructionSkip) {
+            return YES;
+        };
+        
         if (sampleBufferRef) 
         {
             //NSLog(@"read a video frame: %@", CFBridgingRelease(CMTimeCopyDescription(kCFAllocatorDefault, CMSampleBufferGetOutputPresentationTimeStamp(sampleBufferRef))));
@@ -442,6 +458,11 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
             __unsafe_unretained GPUImageMovie *weakSelf = self;
             runSynchronouslyOnVideoProcessingQueue(^{
                 [weakSelf processMovieFrame:sampleBufferRef];
+                
+                if ([self.delegate respondsToSelector:@selector(movie:didProcessFrame:)]) {
+                    [self.delegate movie:weakSelf didProcessFrame:sampleBufferRef];
+                }
+                
                 CMSampleBufferInvalidate(sampleBufferRef);
                 CFRelease(sampleBufferRef);
             });
@@ -808,8 +829,8 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 #endif
     }
 
-    if ([self.delegate respondsToSelector:@selector(didCompletePlayingMovie)]) {
-        [self.delegate didCompletePlayingMovie];
+    if ([self.delegate respondsToSelector:@selector(movieDidFinish:)]) {
+        [self.delegate movieDidFinish:self];
     }
     self.delegate = nil;
 }
